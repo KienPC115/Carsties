@@ -1,11 +1,39 @@
+# define the services or containers that will be running in your Docker environment.
 services:
-  postgres:
+  postgres: # use official PostgreSQL Docker image -> set up to create their container at docker container
     image: postgres
     environment:
       - POSTGRES_PASSWORD=postgrespw
     ports:
       - 5432:5432
     volumes:
-      - pgdata:/var/lib/postgresql/data
-volumes:
-  pgdata:
+      # - pgdata:/var/lib/postgresql/data
+      - /var/lib/postgresql/data
+  mongodb: # use official MongoDB Docker image -> set up to create their container at docker container
+    image: mongo
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=mongopw
+    ports:
+      - 27017:27017
+    volumes:
+      # - mongodata:/var/lib/mongodb/data
+      - /var/lib/mongodb/data
+# volumes: 
+# The volumes section ensures that the data for each service is stored outside the containers, making it persistent even if the containers are stopped or removed.
+# If you config the absolute paths, and didnot use the volumes -> you are directly mounting host directories into containers -> it won't be persistent if the containers are stopped or removed.
+  # pgdata:
+  # mongodata:
+
+# ex: mongodata:/var/lib/mongodb/data
+# mongodata is a volume name
+# /var/lib is a common directory for storing variable data on Unix-based systems.
+# /mongodb is a meaningful subdirectory indicating that the data is related to MongoDB.
+# /data is a conventional subdirectory where databases and other data-related content are often stored.
+# -> actual storage location is within the virtual machine used by Docker. This virtual machine runs a Linux distribution, and the data is stored within that environment.
+
+# The cli: docker compose up -d -> used to start the services defined in docker-compose.yml file in detached mode/(containers will run in the background, and you'll get your command prompt back)
+# The cli: docker compose down -> used to stop and remove the containers defined in docker-compose.yml
+# The cli: docker volume list -> show you a list of all volumes on system.
+
+# *Note: Because of the volumes section -> help the  data is stored outside the container -> if the container stops and removes but retains these volumes unless you use 'docker compose down -v' or 'docker volume rm <volume-name>'
