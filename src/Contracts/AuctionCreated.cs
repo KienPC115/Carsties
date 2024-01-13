@@ -1,11 +1,10 @@
-﻿using MongoDB.Entities;
+﻿namespace Contracts;
+// if we create contracts in each different services, conventionally(1 publish - 1 subcribe), massTransit is required us to ensure that our
+//contracts are in the exact same namespace on both sides. In our case we define the Contracts in class libray was referenced with both side
 
-namespace SearchService.Models;
-
-public class Item : Entity// the same as our auctionDTO what's going to come across once we have our messaging enable
+public class AuctionCreated
 {
-    // the Item Class derive form MongoDb Entity -> it provides an ID for our item and effectively in our MongoBD
-    // public Guid Id { get; set; } -> it doesn't need, already have in there
+    public Guid Id { get; set; }
     public int ReservePrice { get; set; }
     public string Seller { get; set; }
     public string Winner { get; set; }

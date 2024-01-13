@@ -1,11 +1,10 @@
-using System.Formats.Asn1;
-using System.Reflection.Metadata.Ecma335;
-using System.Runtime.CompilerServices;
 using AuctionService.Data;
 using AuctionService.DTOs;
 using AuctionService.Entities;
 using AutoMapper;
 using AutoMapper.QueryableExtensions;
+using Contracts;
+using MassTransit;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -17,13 +16,17 @@ public class AuctionsController : ControllerBase
 {
     private readonly AuctionDbContext _context;
     private readonly IMapper _mapper;
+    // IPublishEndpoint from MassTransit to allow us to publish that message
+    private readonly IPublishEndpoint _publishEndpoint;
 
     // our framework creates a new instance of the controller which it will do when it receives
     //a request into particular route
-    public AuctionsController(AuctionDbContext context, IMapper mapper)
+    public AuctionsController(AuctionDbContext context, IMapper mapper,
+        IPublishEndpoint publishEndpoint)
     {
         _context = context;
         _mapper = mapper;
+        _publishEndpoint = publishEndpoint;
     }
 
     [HttpGet]
@@ -31,7 +34,8 @@ public class AuctionsController : ControllerBase
     {
         var query = _context.Auctions.OrderBy(x => x.Item.Make).AsQueryable();
 
-        if(!string.IsNullOrEmpty(date)) {
+        if (!string.IsNullOrEmpty(date))
+        {
             query = query.Where(x => x.UpdatedAt.CompareTo(DateTime.Parse(date).ToUniversalTime()) > 0);
         }
 
@@ -61,11 +65,16 @@ public class AuctionsController : ControllerBase
 
         _context.Auctions.Add(auction);
 
+        var newAuction = _mapper.Map<AuctionDto>(auction);
+        // this code to publish a message becomes Part of our entity framework Transaction
+        //-> if service bus is down. If that fails, then whole transaction fails
+        await _publishEndpoint.Publish(_mapper.Map<AuctionCreated>(newAuction));
+
         var result = await _context.SaveChangesAsync() > 0;
 
         if (!result) return BadRequest("Could not save changes to the DB");
 
-        return CreatedAtAction(nameof(GetAuctionById), new { auction.Id }, _mapper.Map<AuctionDto>(auction));
+        return CreatedAtAction(nameof(GetAuctionById), new { auction.Id }, newAuction);
     }
 
     [HttpPut("{id}")]
@@ -74,7 +83,7 @@ public class AuctionsController : ControllerBase
         var auction = await _context.Auctions.Include(x => x.Item)
             .FirstOrDefaultAsync(x => x.Id == id);
 
-        if(auction == null) return NotFound();
+        if (auction == null) return NotFound();
 
         // TODO: check seller == username
 
@@ -84,27 +93,32 @@ public class AuctionsController : ControllerBase
         auction.Item.Mileage = updateAuctionDto.Mileage ?? auction.Item.Mileage;
         auction.Item.Year = updateAuctionDto.Year ?? auction.Item.Year;
 
-        var result = await _context.SaveChangesAsync() > 0;
+        await _publishEndpoint.Publish(_mapper.Map<AuctionUpdated>(auction));
 
-        if(result) return Ok();
+        var result = await _context.SaveChangesAsync() > 0; // so if our service bus was down, this still work and save that message into the outbox in DB
+
+        if (result) return Ok();
 
         return BadRequest("Problem saving changes");
     }
 
     [HttpDelete("{id}")]
-    public async Task<ActionResult> DeleteAuction(Guid id) {
+    public async Task<ActionResult> DeleteAuction(Guid id)
+    {
         var auction = await _context.Auctions
             .FindAsync(id);
 
-        if(auction == null) return NotFound();
+        if (auction == null) return NotFound();
 
         // TODO: check seller == username
 
         _context.Auctions.Remove(auction);
 
+        await _publishEndpoint.Publish<AuctionDeleted>(new { Id = auction.Id.ToString() });
+
         var result = await _context.SaveChangesAsync() > 0;
 
-        if(result) return Ok();
+        if (result) return Ok();
 
         return BadRequest("Could not update DB");
     }

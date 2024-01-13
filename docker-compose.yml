@@ -19,6 +19,11 @@ services:
     volumes:
       # - mongodata:/var/lib/mongodb/data
       - /var/lib/mongodb/data
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - 5672:5672 # this port for rabbitmq - message broker
+      - 15672:15672 # this port for rabbitmq management utility can access on browser ~ abstracting away from RabbitMq is MassTransit
 # volumes: 
 # The volumes section ensures that the data for each service is stored outside the containers, making it persistent even if the containers are stopped or removed.
 # If you config the absolute paths, and didnot use the volumes -> you are directly mounting host directories into containers -> it won't be persistent if the containers are stopped or removed.
