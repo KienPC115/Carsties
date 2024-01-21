@@ -24,6 +24,33 @@ services:
     ports:
       - 5672:5672 # this port for rabbitmq - message broker
       - 15672:15672 # this port for rabbitmq management utility can access on browser ~ abstracting away from RabbitMq is MassTransit
+  # cli: docker compose build auction-svc -> build the service inside docker compose
+  # cli: ocker compose up -d -> run the auction-svc container inside docker
+  auction-svc:
+    image: kientrung1105/auction-svc:latest
+    build: 
+    # context: . means inside the carsties directory where we run this command from the root of our dir
+      context: .
+      dockerfile: src/AuctionService/Dockerfile
+    environment:
+    # override default, it not going run in production
+      - ASPNETCORE_ENVIRONMENT=Development
+    # this is the internal URL that our app, our auctionService is going to run on
+      - ASPNETCORE_URLS=http://+:80
+    # Setup for AuctionService into Docker -> the same map with setup for it in appsetting.json
+    # we need environment variable for rabbitmq to it -> rabbitmq which contaier we run it inside Docker above
+      - RabbitMq__Host=rabbitmq
+      - ConnectionStrings__DefaultConnection=Server=postgres:5432; User Id=postgres;Password=postgrespw;Database=auction
+      - IdentityServiceUrl=http://identity-svc
+    # port - what is this going to listen on. 7001 as external port - from outside the docker, 80 as internal port
+    ports:
+      - 7001:80
+    # add the futher config the services which this service depend on AucService want to start rabbitmq, postgres
+    depends_on:
+      - postgres
+      - rabbitmq
+
+
 # volumes: 
 # The volumes section ensures that the data for each service is stored outside the containers, making it persistent even if the containers are stopped or removed.
 # If you config the absolute paths, and didnot use the volumes -> you are directly mounting host directories into containers -> it won't be persistent if the containers are stopped or removed.

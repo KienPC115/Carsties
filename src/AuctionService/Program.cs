@@ -41,6 +41,15 @@ builder.Services.AddMassTransit(x => {
     x.SetEndpointNameFormatter(new KebabCaseEndpointNameFormatter("auction", false));
 
     x.UsingRabbitMq((context, cfg) => {
+        // When AuctionService containerized into Docker, it can not connect to Rabbitmq bc the Docker run with enviroment network different development machine
+        // if we don't specify a configuration for Rabbitmq, then it is going to use localhost by default
+        // we need override that so that Docker can use a different location for Rabbitmq so that AuctionService can connect to Rabbitmq when it's running inside a container
+        // we need to tell RabbitMq about the host of where this is running on
+        cfg.Host(builder.Configuration["RabbitMq:Host"], "/", host => {
+            host.Username(builder.Configuration.GetValue("RabbitMq:Username", "guest"));
+            host.Password(builder.Configuration.GetValue("RabbitMq:Password", "guest"));
+        });
+
         cfg.ConfigureEndpoints(context);
     });
 });
