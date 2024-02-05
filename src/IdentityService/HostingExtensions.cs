@@ -28,6 +28,15 @@ internal static class HostingExtensions
                 options.Events.RaiseFailureEvents = true;
                 options.Events.RaiseSuccessEvents = true;
 
+                // check environment we're running in
+                if (builder.Environment.IsEnvironment("Docker"))
+                {
+                    // if run in Docker we should to change the IssuerUri bc it still the claims 'iss': localhost:5000 bc Identity still Develop env
+                    // -> token is not valid
+                    //then they can validate the Token in Docker environment will new iss claim and change IdentityService to Docker env
+                    options.IssuerUri = "identity-svc";
+                }
+
                 // see https://docs.duendesoftware.com/identityserver/v6/fundamentals/resources/
                 // options.EmitStaticAudienceClaim = true;
             })
@@ -39,19 +48,20 @@ internal static class HostingExtensions
 
         // adding this config to avoid some exception when we using over http
         // we dont use a SameSiteMode.Strict
-        builder.Services.ConfigureApplicationCookie(options => {
+        builder.Services.ConfigureApplicationCookie(options =>
+        {
             options.Cookie.SameSite = SameSiteMode.Lax;
         });
-        
+
         builder.Services.AddAuthentication();
 
         return builder.Build();
     }
-    
+
     public static WebApplication ConfigurePipeline(this WebApplication app)
-    { 
+    {
         app.UseSerilogRequestLogging();
-    
+
         if (app.Environment.IsDevelopment())
         {
             app.UseDeveloperExceptionPage();
@@ -61,7 +71,7 @@ internal static class HostingExtensions
         app.UseRouting();
         app.UseIdentityServer();
         app.UseAuthorization();
-        
+
         app.MapRazorPages()
             .RequireAuthorization();
 

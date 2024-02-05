@@ -18,7 +18,8 @@ builder.Services.AddMassTransit(x => {
     // - HOW the MassTransit work for consumer - 
     // We publish a message from our auction service that's going to go to the Contracts:AuctionCreated, which will then forward that
     //to exchanges that on to exchanges that are bound to this exchange which in this case is the search-auction-created exchange and then this search-auction-created exchange
-    //has a queue also call search-auction-created -> it works in MassTransit. - default these are fanout exchange
+    //has a queue also call search-auction-created, then the message will be consume by specific consumer and the message will be deleted at queue 
+    // => it works in MassTransit. - default these are fanout exchange
 
     // We have the consumer, then we need to tell it where to find the consumers that we're creating
     // Any other consumers we create in this same namespace are automatically going to be registered by mass transit - bc MassTransit to scan the assembly containing the AuctionCreatedConsumer class
@@ -33,6 +34,11 @@ builder.Services.AddMassTransit(x => {
     // make MassTransit connection to rabbitMq, bc MassTransit can using alot of message broker
     // we can config inside rabbitmq some retry policies for specific endpoints
     x.UsingRabbitMq((context, cfg) => {
+        cfg.Host(builder.Configuration["RabbitMq:Host"], "/", host => {
+            host.Username(builder.Configuration.GetValue("RabbitMq:Username", "guest"));
+            host.Password(builder.Configuration.GetValue("RabbitMq:Password", "guest"));
+        });
+
         //2. if we want to config on a per endpoint basis
         // setup the particular endpoint help the consumer can retry the get message when consumer have a problems
         cfg.ReceiveEndpoint("search-auction-created", e => {
